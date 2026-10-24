@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 transition-colors duration-300;
+    font-family: var(--font-inter), sans-serif;
+    background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+  
+  .dark body {
+    @apply bg-slate-950 text-slate-50;
+    background-image: radial-gradient(#1e293b 1px, transparent 1px);
+  }
+  
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-slate-300 dark:bg-slate-700 rounded-full; }
+}
+
+/* গ্লাস ইফেক্ট (কাঁচের মতো স্বচ্ছ কার্ড) */
+.glass-panel {
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/20 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)];
+}
+
+/* সুন্দর ফোকাস রিং */
+.input-premium {
+  @apply w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 outline-none transition-all duration-200;
+  @apply focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-900;
+}
+
+/* প্রিমিয়াম টেবিল ডিজাইন */
+.table-premium {
+  @apply w-full text-sm text-left border-collapse;
+}
+.table-premium thead {
+  @apply bg-slate-50/80 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase text-[11px] font-bold tracking-wider border-b border-slate-200 dark:border-slate-800;
+}
+.table-premium th {
+  @apply px-5 py-4;
+}
+.table-premium tbody tr {
+  @apply border-b border-slate-100 dark:border-slate-800/60 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors duration-200;
+}
+.table-premium td {
+  @apply px-5 py-4 text-slate-700 dark:text-slate-300;
+}
+
+/* টোস্ট মেসেজের জন্য কাস্টম এনিমেশন (বাউন্স ইফেক্ট) */
+@keyframes toast-pop {
+  0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+  50% { opacity: 1; transform: scale(1.05) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-toast {
+  animation: toast-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* ব্রাউজারের অটো-ফিল ডার্ক ও লাইট মোডের সাথে মিলিয়ে দেওয়া */
+/* লাইট মোডে অটো-ফিল সাদা হবে */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+    -webkit-text-fill-color: #0f172a !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ডার্ক মোডে অটো-ফিল কালো হবে */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #020617 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* =========================================
+   প্রিন্টের জন্য কাস্টম স্টাইল
+   ========================================= */
+@media print {
+  /* ১. সাইডবার, হেডার, ফর্ম এবং অপ্রয়োজনীয় বাটন লুকানো */
+  aside, 
+  header, 
+  nav, 
+  .print\:hidden,
+  button {
+    display: none !important;
+  }
+
+  /* ২. মূল কন্টেইনারের প্যাডিং এবং মার্জিন শূন্য করা */
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* ৩. ব্যাকগ্রাউন্ড সাদা করা এবং কালার প্রিন্ট নিশ্চিত করা */
+  body {
+    background: white !important;
+    background-image: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 12px;
+  }
+
+  /* ৪. কন্টেইনারের সীমাবদ্ধতা সরানো */
+  .max-w-7xl, .max-w-4xl, .max-w-2xl {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* ৫. কার্ডের শ্যাডো ও বর্ডার সরানো */
+  .bg-white {
+    box-shadow: none !important;
+  }
+
+  /* ৬. টেবিল ডিজাইন প্রিন্টের জন্য */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th, td {
+    padding: 8px !important;
+    border: 1px solid #ddd !important;
+  }
+
+  /* ৭. পেজ ব্রেক ঠিক রাখা */
+  .page-break {
+    page-break-before: always;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+}
+/* টপ লোডার এনিমেশন */
+@keyframes progress {
+  0% { transform: scaleX(0); }
+  50% { transform: scaleX(0.7); }
+  100% { transform: scaleX(1); }
+}
+
+.animate-progress {
+  animation: progress 0.6s ease-in-out forwards;
+}

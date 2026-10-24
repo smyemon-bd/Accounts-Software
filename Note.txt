@@ -1,0 +1,22 @@
+Option A — দ্রুত ও সহজ (recommended শুরুতে):
+
+Frontend: Next.js (React) + Tailwind + shadcn/ui
+
+Backend: Node.js (NestJS বা Express) অথবা Next.js API routes
+
+DB: PostgreSQL + Prisma ORM
+
+Auth: NextAuth / JWT + RBAC middleware
+
+Charts: Recharts / Chart.js
+
+
+৬. ধাপে ধাপে রোডম্যাপ (MVP → Full)
+Phase 1 (MVP – ৩-৪ সপ্তাহ): Auth + RBAC, User management, Client, ServiceOrder, Payment (full & installment), Dashboard (basic)
+
+Phase 2 (২-৩ সপ্তাহ): Inventory (Product, Distributor, Purchase, Sale), Stock movement, Reports
+
+Phase 3 (২ সপ্তাহ): Investment, Loan + EMI schedule, Accounting ledger (auto journal)
+
+Phase 4: Audit log, notification (due reminder), export (PDF/Excel), backup
+
