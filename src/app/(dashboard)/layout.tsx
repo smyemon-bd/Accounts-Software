@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="md:hidden print:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-30 flex items-center justify-between px-4 shadow-sm transition-colors">
           <div className="flex items-center gap-3">
             <MobileSidebar nav={nav} user={session.user} />
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white">ByteFlow BMS 2</h2>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white">ByteFlow BMS </h2>
           </div>
           <div className="flex items-center gap-2">
             <GlobalSearch />
