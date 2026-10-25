@@ -79,6 +79,7 @@ export async function createExpense(formData: FormData) {
       if (!cashAccount) cashAccount = await tx.account.create({ data: { code: "1000", name: "Cash", type: "ASSET" } });
     }
 
+    // সাধারণ খরচের জন্য জার্নাল এন্ট্রি (যেকোনো পেমেন্ট অ্যাকাউন্ট থেকে কাটবে, সেটা Petty Cash হোক বা Bank)
     let expenseAccount = await tx.account.findUnique({ where: { code: "5000" } });
     if (!expenseAccount) expenseAccount = await tx.account.create({ data: { code: "5000", name: "General Expense", type: "EXPENSE" } });
 

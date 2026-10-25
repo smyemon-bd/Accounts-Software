@@ -7,8 +7,13 @@ import { getSettings } from "@/server/actions/settings";
 export default async function ExpenseReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   
+  // এখানে category এবং paymentAccount রিলেশন ইনক্লুড করা হলো
   const expense = await prisma.expense.findUnique({
     where: { id: resolvedParams.id },
+    include: {
+      category: true,
+      paymentAccount: true,
+    }
   });
 
   if (!expense) notFound();
@@ -51,7 +56,8 @@ export default async function ExpenseReceiptPage({ params }: { params: Promise<{
             <div>
               <p className="text-[10px] font-bold text-red-600 uppercase tracking-wider mb-1">Expense Details</p>
               <h3 className="font-bold text-lg text-slate-900">{expense.title}</h3>
-              <p className="text-xs text-slate-600 mt-1">Category: {expense.category}</p>
+              <p className="text-xs text-slate-600 mt-1">Category: {expense.category?.name || "N/A"}</p>
+              <p className="text-xs text-slate-600">Account: {expense.paymentAccount?.name || "Cash"}</p>
               <p className="text-xs text-slate-600">Notes: {expense.notes || "N/A"}</p>
             </div>
             

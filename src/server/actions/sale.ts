@@ -71,7 +71,7 @@ export async function createSale(formData: FormData) {
         }
       });
 
-      // ৪. Accounting Posting (Paid Amount এর জন্য)
+      // Accounting Posting (Paid Amount এর জন্য)
       let cashAccount;
       if (paymentAccountId) {
         cashAccount = await tx.account.findUnique({ where: { code: `ACC-${paymentAccountId}` } });
@@ -97,6 +97,27 @@ export async function createSale(formData: FormData) {
             create: [
               { accountId: cashAccount.id, debit: paidAmount, credit: 0 },
               { accountId: revenueAccount.id, debit: 0, credit: paidAmount },
+            ],
+          },
+        },
+      });
+    }
+
+    // ৪. Due Amount থাকলে Accounts Receivable (AR) এন্ট্রি (নতুন যোগ করা হলো)
+    if (dueAmount > 0) {
+      let arAccount = await tx.account.findUnique({ where: { code: "1100" } });
+      if (!arAccount) arAccount = await tx.account.create({ data: { code: "1100", name: "Accounts Receivable", type: "ASSET" } });
+
+      let revenueAccount = await tx.account.findUnique({ where: { code: "4000" } });
+      if (!revenueAccount) revenueAccount = await tx.account.create({ data: { code: "4000", name: "Sales Revenue", type: "REVENUE" } });
+
+      await tx.journalEntry.create({
+        data: {
+          memo: `Sale Due - ${invoiceNo}`,
+          lines: {
+            create: [
+              { accountId: arAccount.id, debit: dueAmount, credit: 0 },
+              { accountId: revenueAccount.id, debit: 0, credit: dueAmount },
             ],
           },
         },
@@ -159,7 +180,6 @@ export async function updateSale(formData: FormData) {
   const paidAmount = Number(formData.get("paidAmount") || 0);
 
   await prisma.$transaction(async (tx) => {
-    // ১. সেল ডেটা আনা
     const sale = await tx.sale.findUnique({
       where: { id },
       include: { items: true }
@@ -173,13 +193,12 @@ export async function updateSale(formData: FormData) {
     const total = subTotal - discount;
     const dueAmount = total - paidAmount;
 
-    // ২. সেল আপডেট
     await tx.sale.update({
       where: { id },
       data: { total, discount, paidAmount, dueAmount }
     });
 
-    // ৩. পুরনো জার্নাল এন্ট্রি ডিলিট করা
+    // পুরনো জার্নাল এন্ট্রি ডিলিট
     const oldPayments = await tx.payment.findMany({ where: { saleId: id } });
     for (const p of oldPayments) {
       const journalEntry = await tx.journalEntry.findUnique({ where: { paymentId: p.id } });
@@ -189,10 +208,9 @@ export async function updateSale(formData: FormData) {
       }
     }
 
-    // ৪. পুরনো পেমেন্ট ডিলিট
     await tx.payment.deleteMany({ where: { saleId: id } });
 
-    // ৫. নতুন পেমেন্ট ও জার্নাল এন্ট্রি তৈরি (যদি Paid Amount > 0 হয়)
+    // নতুন পেমেন্ট ও জার্নাল এন্ট্রি
     if (paidAmount > 0) {
       const payment = await tx.payment.create({
         data: {
@@ -204,7 +222,6 @@ export async function updateSale(formData: FormData) {
         }
       });
 
-      // Accounting Posting
       let cashAccount;
       if (sale.paymentAccountId) {
         cashAccount = await tx.account.findUnique({ where: { code: `ACC-${sale.paymentAccountId}` } });
@@ -235,9 +252,29 @@ export async function updateSale(formData: FormData) {
         },
       });
     }
+
+    // Due Amount এর AR এন্ট্রি
+    if (dueAmount > 0) {
+      let arAccount = await tx.account.findUnique({ where: { code: "1100" } });
+      if (!arAccount) arAccount = await tx.account.create({ data: { code: "1100", name: "Accounts Receivable", type: "ASSET" } });
+
+      let revenueAccount = await tx.account.findUnique({ where: { code: "4000" } });
+      if (!revenueAccount) revenueAccount = await tx.account.create({ data: { code: "4000", name: "Sales Revenue", type: "REVENUE" } });
+
+      await tx.journalEntry.create({
+        data: {
+          memo: `Sale Due Updated - ${sale.invoiceNo}`,
+          lines: {
+            create: [
+              { accountId: arAccount.id, debit: dueAmount, credit: 0 },
+              { accountId: revenueAccount.id, debit: 0, credit: dueAmount },
+            ],
+          },
+        },
+      });
+    }
   });
 
-  // ✅ সব পেজ রিভ্যালিডেট করা যাতে ডেটা আপডেট হয়
   revalidatePath("/sales");
   revalidatePath("/payments");
   revalidatePath("/accounting");

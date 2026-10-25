@@ -2,7 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/rbac";
 import { getDashboardSettings } from "@/server/actions/dashboard-setting";
 import { getAllAccountBalances } from "@/server/actions/accounting";
-import { MonthlyCollectionChart, StockPieChart, MonthlyExpenseChart, ExpenseCategoryChart, NoDataChart } from "@/components/charts";
+import { 
+  MonthlyCollectionChart, 
+  StockPieChart, 
+  MonthlyExpenseChart, 
+  ExpenseCategoryChart, 
+  NoDataChart 
+} from "@/components/charts";
 import Link from "next/link";
 import { 
   Users, FileText, Wallet, AlertCircle, TrendingUp, Filter, X, 
@@ -14,8 +20,10 @@ export default async function DashboardPage({
 }: { 
   searchParams: Promise<{ month?: string, year?: string }> 
 }) {
-  const user = await getSessionUser();
-  const role = user?.role;
+  const sessionUser = await getSessionUser();
+  const dbUser = sessionUser ? await prisma.user.findUnique({ where: { id: (sessionUser as any).id }, select: { name: true } }) : null;
+  const user = { ...sessionUser, name: dbUser?.name || sessionUser?.name };
+  
   const settings = await getDashboardSettings();
 
   const resolvedParams = await searchParams;
@@ -25,7 +33,7 @@ export default async function DashboardPage({
   const startDate = new Date(selectedYear, selectedMonth, 1);
   const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
 
-  const [clients, orders, allOrders, collectedAgg, recent, payments, products, expenses, upcomingDues, filteredPayments, filteredExpenses, loans, loanRepayments, investments, usersCount, sales, accountBalances, dividends, shareHolders] = await Promise.all([
+  const [clients, orders, allOrders, collectedAgg, recent, payments, products, expenses, upcomingDues, filteredPayments, filteredExpenses, loans, loanRepayments, investments, usersCount, sales, accountBalances, dividends, shareHolders, lowStockCount] = await Promise.all([
     prisma.client.count(),
     prisma.serviceOrder.count(),
     prisma.serviceOrder.findMany({
@@ -39,7 +47,7 @@ export default async function DashboardPage({
     }),
     prisma.payment.findMany({ orderBy: { paidAt: "desc" }, take: 50 }),
     prisma.product.findMany(),
-    prisma.expense.findMany({ orderBy: { date: "desc" }, take: 50 }),
+    prisma.expense.findMany({ orderBy: { date: "desc" }, take: 50, include: { category: true } }),
     prisma.installment.findMany({
       where: {
         status: { in: ["DUE", "PARTIAL"] },
@@ -53,7 +61,7 @@ export default async function DashboardPage({
       take: 5
     }),
     prisma.payment.findMany({ where: { paidAt: { gte: startDate, lte: endDate } } }),
-    prisma.expense.findMany({ where: { date: { gte: startDate, lte: endDate } } }),
+    prisma.expense.findMany({ where: { date: { gte: startDate, lte: endDate } }, include: { category: true } }),
     prisma.loan.findMany(),
     prisma.loanRepayment.findMany(),
     prisma.investment.findMany(),
@@ -62,11 +70,10 @@ export default async function DashboardPage({
     getAllAccountBalances(),
     prisma.dividend.findMany(),
     prisma.shareHolder.findMany(),
+    prisma.product.count({ where: { stockQty: { lte: prisma.product.fields.reorderLvl } } }), // ✅ Low Stock Count
   ]);
 
-  // ✅ ফিক্স: পুরানো সার্ভিস অর্ডারের বদলে নতুন Sale টেবিল থেকে Due হিসাব করা হচ্ছে
   const totalDue = sales.reduce((acc, sale) => acc + Number(sale.dueAmount), 0);
-
   const totalCollected = Number(collectedAgg._sum.amount ?? 0);
   const totalExpense = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
   const netProfit = totalCollected - totalExpense;
@@ -107,9 +114,10 @@ export default async function DashboardPage({
   const monthlyExpenseData = Array.from(monthlyExpenseMap, ([name, total]) => ({ name, total }));
 
   const expenseCategoryMap = new Map();
-  filteredExpenses.forEach(e => {
-    const current = expenseCategoryMap.get(e.category) || 0;
-    expenseCategoryMap.set(e.category, current + Number(e.amount));
+  filteredExpenses.forEach((e: any) => {
+    const catName = e.category?.name || "Others"; 
+    const current = expenseCategoryMap.get(catName) || 0;
+    expenseCategoryMap.set(catName, current + Number(e.amount));
   });
   const expenseCategoryData = Array.from(expenseCategoryMap, ([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
 
@@ -121,7 +129,6 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back, {user?.name}!</h1>
@@ -149,6 +156,24 @@ export default async function DashboardPage({
           </Link>
         </div>
       </div>
+
+      {/* ✅ Low Stock Alert Banner */}
+      {lowStockCount > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="bg-red-100 dark:bg-red-900/40 p-2.5 rounded-xl text-red-600 dark:text-red-400 shrink-0">
+              <AlertCircle size={20} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-red-800 dark:text-red-300">Low Stock Alert!</p>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{lowStockCount} products are running low on stock. Please reorder soon to avoid sales disruption.</p>
+            </div>
+          </div>
+          <Link href="/masters?tab=products" className="w-full md:w-auto text-center bg-white dark:bg-slate-900 text-red-600 border border-red-200 dark:border-red-800 px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors shrink-0">
+            View Products
+          </Link>
+        </div>
+      )}
 
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -189,7 +214,17 @@ export default async function DashboardPage({
         {accountBalances.cashBalance > 0 && (
           <MiniKpiCard label="Cash Balance" value={`৳ ${accountBalances.cashBalance.toLocaleString()}`} icon={<Banknote size={16} />} />
         )}
-        {accountBalances.balances.map((acc: any) => (
+        
+        {settings?.showPettyCash && accountBalances.balances.filter((b: any) => b.type === "PETTY_CASH").map((acc: any) => (
+          <MiniKpiCard 
+            key={acc.id} 
+            label={`${acc.name} (Petty Cash)`} 
+            value={`৳ ${acc.balance.toLocaleString()}`} 
+            icon={<Wallet size={16} />} 
+          />
+        ))}
+
+        {accountBalances.balances.filter((acc: any) => acc.type !== "PETTY_CASH").map((acc: any) => (
           <MiniKpiCard 
             key={acc.id} 
             label={`${acc.name} (${acc.type})`} 
@@ -211,28 +246,57 @@ export default async function DashboardPage({
 
       {/* Charts Section */}
       {settings?.showGraph && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-slate-800 dark:text-white">Revenue Analytics</h2>
-              <span className="text-xs text-slate-400">Last 6 Months</span>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-bold text-slate-800 dark:text-white">Revenue Analytics</h2>
+                <span className="text-xs text-slate-400">Last 6 Months</span>
+              </div>
+              {monthlyData.some(d => d.total > 0) ? (
+                <MonthlyCollectionChart data={monthlyData} />
+              ) : (
+                <NoDataChart message="No revenue data for the last 6 months" />
+              )}
             </div>
-            {monthlyData.some(d => d.total > 0) ? (
-              <MonthlyCollectionChart data={monthlyData} />
-            ) : (
-              <NoDataChart message="No revenue data for the last 6 months" />
-            )}
+            
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-bold text-slate-800 dark:text-white">Expenses Overview</h2>
+                <span className="text-xs text-slate-400">Last 6 Months</span>
+              </div>
+              {monthlyExpenseData.some(d => d.total > 0) ? (
+                <MonthlyExpenseChart data={monthlyExpenseData} />
+              ) : (
+                <NoDataChart message="No expense data for the last 6 months" />
+              )}
+            </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-bold text-slate-800 dark:text-white">Expenses Overview</h2>
-              <span className="text-xs text-slate-400">Last 6 Months</span>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-bold text-slate-800 dark:text-white">Stock Distribution</h2>
+                <span className="text-xs text-slate-400">Top 5 Products</span>
+              </div>
+              {stockData.length > 0 ? (
+                <StockPieChart data={stockData} />
+              ) : (
+                <NoDataChart message="No stock data available" />
+              )}
             </div>
-            {monthlyExpenseData.some(d => d.total > 0) ? (
-              <MonthlyExpenseChart data={monthlyExpenseData} />
-            ) : (
-              <NoDataChart message="No expense data for the last 6 months" />
-            )}
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="font-bold text-slate-800 dark:text-white">Expense Breakdown</h2>
+                <span className="text-xs text-slate-400">By Category</span>
+              </div>
+              {expenseCategoryData.length > 0 ? (
+                <ExpenseCategoryChart data={expenseCategoryData} />
+              ) : (
+                <NoDataChart message="No expense categories found" />
+              )}
+            </div>
           </div>
         </div>
       )}

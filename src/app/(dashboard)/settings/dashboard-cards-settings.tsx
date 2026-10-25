@@ -31,6 +31,7 @@ export function DashboardCardsSettings({ settings }: { settings: any }) {
         <ToggleSetting name="showUserCount" label="User Accounts" defaultChecked={settings?.showUserCount} />
         <ToggleSetting name="showGraph" label="Monthly Sales Graph" defaultChecked={settings?.showGraph} />
         <ToggleSetting name="showDividend" label="Dividend Info" defaultChecked={settings?.showDividend} />
+        <ToggleSetting name="showPettyCash" label="Petty Cash Balance" defaultChecked={settings?.showPettyCash} />
       </div>
 
       <div className="pt-4 border-t border-slate-200 dark:border-slate-800">

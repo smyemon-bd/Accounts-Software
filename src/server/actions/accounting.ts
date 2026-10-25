@@ -1,8 +1,8 @@
 "use server";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/rbac";
+import { requireAuth, requirePermission } from "@/lib/rbac";
 
-// ১. ট্রায়াল ব্যালেন্স (সব অ্যাকাউন্টের ডেবিট-ক্রেডিট)
+// ১. ট্রায়াল ব্যালেন্স
 export async function getTrialBalance() {
   await requirePermission("dashboard.admin");
   
@@ -29,9 +29,9 @@ export async function getTrialBalance() {
   return Object.values(accounts);
 }
 
-// ২. নির্দিষ্ট অ্যাকাউন্টের লেনদেন (Cash, Bank, MFS ইত্যাদি)
+// ২. নির্দিষ্ট অ্যাকাউন্টের লেনদেন (Cashbook এর জন্য)
 export async function getAccountBook(accountCode: string) {
-  await requirePermission("dashboard.admin");
+  await requireAuth();
 
   const account = await prisma.account.findUnique({
     where: { code: accountCode },
@@ -72,27 +72,24 @@ export async function getAccountBook(accountCode: string) {
   };
 }
 
-// ৩. ক্যাশ বুক (শুধু ক্যাশ অ্যাকাউন্ট)
+// ৩. ক্যাশ ফ্লো
 export async function getCashFlow() {
   return await getAccountBook("1000");
 }
 
-// ৪. প্রতিটি পেমেন্ট অ্যাকাউন্টের (Cash/Bank/MFS/QR/PettyCash) ব্যালেন্স বের করা (অপ্টিমাইজড)
+// ৪. সব অ্যাকাউন্টের ব্যালেন্স (ড্যাশবোর্ডের জন্য)
 export async function getAllAccountBalances() {
-  await requirePermission("dashboard.admin");
+  await requireAuth();
 
-  // ১. সব সক্রিয় পেমেন্ট অ্যাকাউন্ট আনা (এখানে PETTY_CASH টাইপও চলে আসবে)
   const paymentAccounts = await prisma.paymentAccount.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" }
   });
 
-  // ২. সব জার্নাল লাইন একবারেই ফেচ করা (যাতে লুপের ভেতর বারবার ডাটাবেস কল না হয়)
   const allJournalLines = await prisma.journalLine.findMany({
     include: { account: true }
   });
 
-  // ৩. প্রতিটি Payment Account এর জন্য ব্যালেন্স ক্যালকুলেট করা
   const balances = paymentAccounts.map((acc) => {
     const accountCode = `ACC-${acc.id}`;
     const lines = allJournalLines.filter(l => l.account.code === accountCode);
@@ -103,7 +100,6 @@ export async function getAllAccountBalances() {
     return { ...acc, balance: totalIn - totalOut };
   });
 
-  // ৪. Cash Account (1000) আলাদাভাবে বের করা
   const cashAccountLines = allJournalLines.filter(l => l.account.code === "1000");
   const cashIn = cashAccountLines.reduce((sum, l) => sum + Number(l.debit), 0);
   const cashOut = cashAccountLines.reduce((sum, l) => sum + Number(l.credit), 0);

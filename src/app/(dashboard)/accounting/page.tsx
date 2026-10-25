@@ -1,4 +1,6 @@
 import { getTrialBalance } from "@/server/actions/accounting";
+import Link from "next/link";
+import { PieChart } from "lucide-react";
 
 export default async function AccountingPage() {
   const balances = await getTrialBalance();
@@ -8,7 +10,18 @@ export default async function AccountingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Accounting (Trial Balance)</h1>
+      {/* Header with New Button */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Accounting (Trial Balance)</h1>
+        
+        {/* ✅ নতুন Profit & Loss বাটন */}
+        <Link 
+          href="/accounting/pl" 
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/30 flex items-center gap-2"
+        >
+          <PieChart size={16} /> Profit & Loss Statement
+        </Link>
+      </div>
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
@@ -33,7 +46,6 @@ export default async function AccountingPage() {
                 </tr>
               ))}
               
-              {/* Total Row */}
               <tr className="bg-slate-50 dark:bg-slate-800/50 font-bold border-t-2 border-slate-300 dark:border-slate-700">
                 <td colSpan={3} className="text-right py-4 text-slate-800 dark:text-white uppercase tracking-wider text-sm">
                   Total

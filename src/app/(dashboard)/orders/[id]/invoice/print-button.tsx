@@ -1,12 +1,14 @@
 "use client";
 
+import { Printer } from "lucide-react";
+
 export default function PrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+      className="bg-slate-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-900 transition-all shadow-lg flex items-center gap-2 print:hidden"
     >
-      Print / Save as PDF
+      <Printer size={18} /> Print / Save as PDF
     </button>
   );
 }

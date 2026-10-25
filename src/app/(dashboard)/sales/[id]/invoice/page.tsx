@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import PrintButton from "@/app/(dashboard)/orders/[id]/invoice/print-button";
 import { getSettings } from "@/server/actions/settings";
+import Image from "next/image";
 
 export default async function SaleInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
@@ -22,6 +23,10 @@ export default async function SaleInvoicePage({ params }: { params: Promise<{ id
   const totalAmount = Number(sale.total);
   const paidAmount = Number(sale.paidAmount);
   const dueAmount = Number(sale.dueAmount);
+
+  // QR কোডে যা থাকবে (ইনভয়েস নাম্বার এবং টোটাল অ্যামাউন্ট)
+  const qrData = `Invoice: ${sale.invoiceNo} | Total: ৳${totalAmount} | Date: ${new Date(sale.createdAt).toLocaleDateString()}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 py-8 print:py-0 print:max-w-full">
@@ -101,8 +106,15 @@ export default async function SaleInvoicePage({ params }: { params: Promise<{ id
           </table>
         </div>
 
-        {/* Totals */}
-        <div className="px-10 flex justify-end mb-8">
+        {/* Totals & QR Code section */}
+        <div className="px-10 flex justify-between mb-8">
+          
+          {/* ✅ নতুন QR কোড সেকশন (বাম দিকে) */}
+          <div className="flex flex-col items-center justify-center p-4 border border-slate-200 rounded-xl bg-slate-50">
+            <img src={qrCodeUrl} alt="Invoice QR Code" width={120} height={120} className="mix-blend-multiply" />
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2 text-center">Scan to verify<br/>{sale.invoiceNo}</p>
+          </div>
+
           <div className="w-72 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Sub Total:</span>

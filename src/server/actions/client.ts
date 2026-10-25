@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePermission } from "@/lib/rbac";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs"; // ✅ bcrypt যোগ করা হলো
 
 const schema = z.object({
   name: z.string().min(1),
@@ -11,7 +12,7 @@ const schema = z.object({
   address: z.string().optional(),
 });
 
-// ১. নতুন ক্লায়েন্ট তৈরি
+// ১. নতুন ক্লায়েন্ট তৈরি
 export async function createClient(formData: FormData) {
   await requirePermission("client.create");
   
@@ -22,11 +23,18 @@ export async function createClient(formData: FormData) {
     address: formData.get("address") || undefined,
   });
   
+  // চেক করা: এই ইমেইলে আগে থেকে কেউ আছে কি না (unique constraint)
+  if (data.email) {
+    const existing = await prisma.client.findUnique({ where: { email: data.email } });
+    if (existing) throw new Error("A client with this email already exists.");
+  }
+
   await prisma.client.create({ data });
   revalidatePath("/clients");
+  revalidatePath("/masters");
 }
 
-// ২. ক্লায়েন্ট আপডেট (Edit)
+// ২. ক্লায়েন্ট আপডেট (Edit) - এখানে পাসওয়ার্ড সেট করার লজিক যোগ করা হলো
 export async function updateClient(formData: FormData) {
   await requirePermission("client.update");
   
@@ -34,12 +42,24 @@ export async function updateClient(formData: FormData) {
   const name = String(formData.get("name"));
   const phone = formData.get("phone") ? String(formData.get("phone")) : null;
   const email = formData.get("email") ? String(formData.get("email")) : null;
+  const portalPassword = formData.get("portalPassword") as string | null; // ✅ নতুন ফিল্ড
+
+  const updateData: any = { name, phone, email };
+
+  // যদি নতুন পাসওয়ার্ড দেওয়া হয়, তবে হ্যাশ করে সেভ করা হবে
+  if (portalPassword && portalPassword.trim() !== "") {
+    if (portalPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters long");
+    }
+    updateData.passwordHash = await bcrypt.hash(portalPassword, 10);
+  }
 
   await prisma.client.update({
     where: { id },
-    data: { name, phone, email },
+    data: updateData,
   });
 
   revalidatePath("/clients");
-  return { success: true }; // রিডাইরেক্টের বদলে সাকসেস রেসপন্স রিটার্ন করবে
+  revalidatePath("/masters");
+  return { success: true };
 }

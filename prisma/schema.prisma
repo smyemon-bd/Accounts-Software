@@ -26,6 +26,7 @@ model User {
 
   paymentsReceived Payment[]    @relation("ReceivedBy")
   auditLogs        AuditLog[]   
+  attendances      Attendance[] 
 }
 
 model Role {
@@ -66,13 +67,15 @@ model Client {
   id            String         @id @default(cuid())
   name          String
   phone         String?
-  email         String?
+  email         String?        @unique // ✅ ক্লায়েন্ট পোর্টালের জন্য ইউনিক
+  passwordHash  String?        // ✅ ক্লায়েন্ট পোর্টালের জন্য পাসওয়ার্ড
   address       String?
   isActive      Boolean        @default(true)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   serviceOrders ServiceOrder[]
   sales         Sale[]         
+  hardwareSales HardwareSale[]
 }
 
 // ---------------- SERVICE ----------------
@@ -143,7 +146,7 @@ enum PaymentMethod {
 model PaymentAccount {
   id          String   @id @default(cuid())
   name        String
-  type        String   // BANK, MFS, CASH, QR
+  type        String   // BANK, MFS, CASH, QR, PETTY_CASH
   accountNo   String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -160,6 +163,8 @@ model Payment {
   serviceOrder     ServiceOrder?   @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
   saleId           String?
   sale             Sale?           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  hardwareSaleId   String?
+  hardwareSale     HardwareSale?   @relation(fields: [hardwareSaleId], references: [id], onDelete: Cascade)
   amount           Decimal         @db.Decimal(12, 2)
   method           PaymentMethod   @default(CASH)
   paymentAccountId String?
@@ -183,16 +188,17 @@ model Distributor {
 }
 
 model Product {
-  id            String         @id @default(cuid())
-  sku           String         @unique
-  name          String
-  costPrice     Decimal        @db.Decimal(12, 2)
-  sellPrice     Decimal        @db.Decimal(12, 2)
-  stockQty      Int            @default(0)
-  reorderLvl    Int            @default(5)
-  isActive      Boolean        @default(true)
-  purchaseItems PurchaseItem[]
-  saleItems     SaleItem[]
+  id                String             @id @default(cuid())
+  sku               String             @unique
+  name              String
+  costPrice         Decimal            @db.Decimal(12, 2)
+  sellPrice         Decimal            @db.Decimal(12, 2)
+  stockQty          Int                @default(0)
+  reorderLvl        Int                @default(5)
+  isActive          Boolean            @default(true)
+  purchaseItems     PurchaseItem[]
+  saleItems         SaleItem[]
+  hardwareSaleItems HardwareSaleItem[]
 }
 
 enum PurchaseStatus {
@@ -251,6 +257,29 @@ model SaleItem {
   qty       Int
   unitPrice Decimal  @db.Decimal(12, 2)
   discount  Decimal  @default(0) @db.Decimal(12, 2)
+}
+
+// ---------------- HARDWARE SALES ----------------
+model HardwareSale {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  total         Decimal  @db.Decimal(12, 2)
+  discount      Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+  items         HardwareSaleItem[]
+  payments      Payment[]
+}
+
+model HardwareSaleItem {
+  id         String       @id @default(cuid())
+  saleId     String
+  sale       HardwareSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  qty        Int
+  unitPrice  Decimal      @db.Decimal(12, 2)
+  discount   Decimal      @default(0) @db.Decimal(12, 2)
 }
 
 // ---------------- LOAN ----------------
@@ -344,6 +373,7 @@ model ExpenseCategory {
   name      String          @unique
   heads     ExpenseHead[]
   expenses  Expense[]
+  budgets   Budget[]
   createdAt DateTime        @default(now())
 }
 
@@ -387,6 +417,40 @@ model Expense {
   notes            String?
   invoiceNo        String?         
   createdAt        DateTime         @default(now())
+}
+
+// ---------------- BUDGET ----------------
+model Budget {
+  id          String          @id @default(cuid())
+  categoryId  String
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount      Decimal         @db.Decimal(12, 2)
+  month       Int             // 0-11
+  year        Int
+  createdAt   DateTime        @default(now())
+
+  @@unique([categoryId, month, year])
+}
+
+// ---------------- ATTENDANCE ----------------
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime         @db.Date
+  status    AttendanceStatus @default(PRESENT)
+  note      String?
+  createdAt DateTime         @default(now())
+
+  @@unique([userId, date])
 }
 
 // ---------------- DIVIDEND ----------------
@@ -461,5 +525,6 @@ model DashboardSetting {
   showUserCount  Boolean  @default(true)
   showGraph      Boolean  @default(true)
   showDividend   Boolean  @default(true)
+  showPettyCash  Boolean  @default(true)
   updatedAt      DateTime @updatedAt
 }

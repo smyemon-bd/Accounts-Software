@@ -1,56 +1,57 @@
 "use server";
-
 import { prisma } from "@/lib/prisma";
+import { requirePermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 
-// ১. মেইন ক্যাশ থেকে Petty Cash এ টাকা ট্রান্সফার করা
-export async function transferToPettyCash(fromAccountId: string, pettyCashAccountId: string, amount: number, note: string) {
+// ১. ফান্ড ট্রান্সফার (Main Account -> Petty Cash)
+export async function refillPettyCash(formData: FormData) {
+  await requirePermission("dashboard.admin");
+  
+  const fromAccountId = String(formData.get("fromAccountId"));
+  const pettyCashAccountId = String(formData.get("pettyCashAccountId"));
+  const amount = Number(formData.get("amount"));
+  const note = String(formData.get("note"));
+
   try {
     await prisma.$transaction(async (tx) => {
-      // ১. মেইন অ্যাকাউন্ট থেকে টাকা কাটা
-      const fromAcc = await tx.paymentAccount.findUnique({ where: { id: fromAccountId } });
-      if (!fromAcc) throw new Error("Source account not found");
+      const pettyAcc = await tx.paymentAccount.findUnique({ where: { id: pettyCashAccountId } });
+      if (!pettyAcc) throw new Error("Petty Cash account not found");
 
-      // ২. Petty Cash এ টাকা যোগ করা
-      await tx.paymentAccount.update({
-        where: { id: pettyCashAccountId },
-        data: { /* ব্যালেন্স আপনার সিস্টেমে কীভাবে হিসাব হয় তার উপর নির্ভর করে, এখানে শুধু লজিক দেখানো হলো */ }
-      });
+      // সোর্স অ্যাকাউন্টের লেজার কোড
+      let fromLedger = await tx.account.findUnique({ where: { code: `ACC-${fromAccountId}` } });
+      if (!fromLedger) {
+        const fromAcc = await tx.paymentAccount.findUnique({ where: { id: fromAccountId } });
+        fromLedger = await tx.account.create({ 
+          data: { code: `ACC-${fromAccountId}`, name: `${fromAcc?.name} (${fromAcc?.type})`, type: "ASSET" } 
+        });
+      }
 
-      // ৩. খরচ বা ট্রান্সফারের রেকর্ড রাখার জন্য Expense টেবিল ব্যবহার করা
-      await tx.expense.create({
+      // পেটি ক্যাশের লেজার কোড
+      let pettyLedger = await tx.account.findUnique({ where: { code: `ACC-${pettyCashAccountId}` } });
+      if (!pettyLedger) {
+        pettyLedger = await tx.account.create({ 
+          data: { code: `ACC-${pettyCashAccountId}`, name: `${pettyAcc.name} (${pettyAcc.type})`, type: "ASSET" } 
+        });
+      }
+
+      // ডাবল এন্ট্রি: পেটি ক্যাশ (Debit) এবং মেইন অ্যাকাউন্ট (Credit)
+      await tx.journalEntry.create({
         data: {
-          title: `Petty Cash Transfer: ${note}`,
-          amount: amount,
-          paymentAccountId: fromAccountId, // টাকা যেখান থেকে গেছে
-          date: new Date(),
-          notes: `Transferred to Petty Cash (${pettyCashAccountId})`
-        }
+          memo: `Refill Petty Cash: ${note}`,
+          lines: {
+            create: [
+              { accountId: pettyLedger.id, debit: amount, credit: 0 },
+              { accountId: fromLedger.id, debit: 0, credit: amount },
+            ],
+          },
+        },
       });
     });
+    
     revalidatePath("/petty-cash");
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
-// ২. Petty Cash থেকে খরচ করা
-export async function logPettyCashExpense(pettyCashAccountId: string, amount: number, title: string, categoryId?: string) {
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Expense টেবিলে এন্ট্রি দেওয়া (এটি অটোমেটিক Petty Cash অ্যাকাউন্ট থেকে কেটে নেবে)
-      await tx.expense.create({
-        data: {
-          title: title,
-          amount: amount,
-          paymentAccountId: pettyCashAccountId, // পেমেন্ট হবে Petty Cash থেকে
-          categoryId: categoryId,
-          date: new Date(),
-        }
-      });
-    });
-    revalidatePath("/petty-cash");
+    revalidatePath("/cashbook");
+    revalidatePath("/accounting");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

@@ -4,7 +4,7 @@ import { requirePermission, requireAuth } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 const userSchema = z.object({
@@ -55,6 +55,9 @@ export async function toggleUserStatus(userId: string, currentStatus: boolean) {
 // ৩. পাসওয়ার্ড পরিবর্তন
 export async function changePassword(formData: FormData) {
   const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
+
   const currentPassword = String(formData.get("currentPassword"));
   const newPassword = String(formData.get("newPassword"));
   const confirmPassword = String(formData.get("confirmPassword"));
@@ -67,7 +70,7 @@ export async function changePassword(formData: FormData) {
     throw new Error("Password must be at least 6 characters long");
   }
 
-  const user = await prisma.user.findUnique({ where: { id: sessionUser.id } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found");
 
   const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -85,6 +88,8 @@ export async function changePassword(formData: FormData) {
 // ৪. প্রোফাইল আপডেট (নাম ও ছবি)
 export async function updateProfile(formData: FormData) {
   const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
   
   const name = String(formData.get("name"));
   const phone = formData.get("phone") ? String(formData.get("phone")) : null;
@@ -101,13 +106,18 @@ export async function updateProfile(formData: FormData) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
-    const filepath = path.join(process.cwd(), "public/uploads", filename);
+    
+    // public/uploads ফোল্ডার না থাকলে তৈরি করা
+    const uploadDir = path.join(process.cwd(), "public/uploads");
+    await mkdir(uploadDir, { recursive: true });
+    
+    const filepath = path.join(uploadDir, filename);
     await writeFile(filepath, buffer);
     imageUrl = `/uploads/${filename}`;
   }
 
   await prisma.user.update({
-    where: { id: sessionUser.id },
+    where: { id: userId },
     data: {
       name: name || undefined,
       phone,
@@ -121,15 +131,21 @@ export async function updateProfile(formData: FormData) {
   revalidatePath("/profile");
   return { success: true };
 }
+
+// ৫. সাইডবার/প্রোফাইল মেনুর জন্য ইউজার ডেটা আনা
 export async function getUserProfileData() {
   const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) return null;
+
   const user = await prisma.user.findUnique({
-    where: { id: sessionUser.id },
+    where: { id: userId },
     select: { name: true, image: true }
   });
   return user;
 }
-// ৫. অ্যাডমিন কর্তৃক ইউজারের পাসওয়ার্ড রিসেট
+
+// ৬. অ্যাডমিন কর্তৃক ইউজারের পাসওয়ার্ড রিসেট
 export async function resetUserPassword(formData: FormData) {
   await requirePermission("user.update");
   const id = String(formData.get("id"));

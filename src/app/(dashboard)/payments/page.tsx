@@ -1,9 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { CreditCard, Wallet, Eye, MonitorSmartphone } from "lucide-react";
+import { CreditCard, Wallet, MonitorSmartphone } from "lucide-react";
 
 export default async function PaymentsPage() {
-  // সার্ভিস অর্ডারের পেমেন্ট
   const servicePayments = await prisma.payment.findMany({
     where: { serviceOrderId: { not: null } },
     orderBy: { paidAt: "desc" },
@@ -14,7 +13,6 @@ export default async function PaymentsPage() {
     },
   });
 
-  // নতুন কমন সেলের পেমেন্ট
   const salePayments = await prisma.payment.findMany({
     where: { saleId: { not: null } },
     orderBy: { paidAt: "desc" },
@@ -73,20 +71,16 @@ export default async function PaymentsPage() {
                     <td className="text-xs">{new Date(p.paidAt).toLocaleDateString()}</td>
                     <td>
                       {p.type === "SERVICE" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-semibold">
-                          Service
-                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs font-semibold">Service</span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs font-semibold">
-                          <MonitorSmartphone size={12} /> Sale
-                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs font-semibold"><MonitorSmartphone size={12} /> Sale</span>
                       )}
                     </td>
                     <td className="text-xs font-mono">
                       {p.type === "SERVICE" ? p.serviceOrder?.orderNo : p.sale?.invoiceNo}
                     </td>
                     <td className="text-sm font-medium">
-                      {p.type === "SERVICE" ? p.serviceOrder?.client.name : p.sale?.client.name}
+                      {p.type === "SERVICE" ? p.serviceOrder?.client?.name : p.sale?.client?.name}
                     </td>
                     <td className="font-bold text-green-600">৳ {Number(p.amount).toLocaleString()}</td>
                     <td>
@@ -94,8 +88,8 @@ export default async function PaymentsPage() {
                         <CreditCard size={12} /> {p.method}
                       </span>
                     </td>
-                    <td className="text-xs">{p.paymentAccount?.name || "N/A"}</td>
-                    <td className="text-xs">{p.receivedBy.name}</td>
+                    <td className="text-xs">{p.paymentAccount?.name || "Cash"}</td>
+                    <td className="text-xs">{p.receivedBy?.name || "Admin"}</td>
                   </tr>
                 ))}
                 {allPayments.length === 0 && (

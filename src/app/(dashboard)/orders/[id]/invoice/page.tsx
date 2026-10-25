@@ -111,11 +111,27 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* টোটাল */}
+                {/* টোটাল ও QR */}
         <div className="px-8 flex justify-between mb-8">
-          <div className="w-1/2">
-            <p className="text-xs font-bold text-slate-900 mb-1">Payment Method :</p>
-            <p className="text-[10px] text-slate-600">Bank Name : {settings.bankName}</p>
-            <p className="text-[10px] text-slate-600">Account Number : {settings.accountNumber}</p>
+          <div className="flex flex-col items-start gap-4">
+            
+            {/* QR Code */}
+            <div className="flex flex-col items-center justify-center p-3 border border-slate-200 rounded-xl bg-slate-50">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`Invoice: ${order.orderNo} | Total: ৳${order.totalAmount}`)}`} 
+                alt="QR Code" 
+                width={100} 
+                height={100}
+                className="mix-blend-multiply"
+              />
+              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2">Scan to verify</p>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-slate-900 mb-1">Payment Method :</p>
+              <p className="text-[10px] text-slate-600">Bank Name : {settings.bankName}</p>
+              <p className="text-[10px] text-slate-600">Account Number : {settings.accountNumber}</p>
+            </div>
           </div>
 
           <div className="w-[250px] space-y-1.5">

@@ -9,6 +9,7 @@ import {
 import { useToast } from "@/components/toast-provider";
 import { Package, Truck, Plus, Boxes, Edit, Trash2, Eye, EyeOff, X } from "lucide-react";
 import PrintButton from "@/app/(dashboard)/orders/[id]/invoice/print-button";
+import ExportButton from "@/components/export-button";
 
 export function InventoryList({ 
   products, 
@@ -137,23 +138,35 @@ export function InventoryList({
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 pb-6 border-b-4 border-slate-800 dark:border-slate-200 print:flex-row print:items-end">
               <div>
                 <h2 className="text-4xl font-black text-slate-800 dark:text-white uppercase tracking-tighter leading-none">
-                  Inventory<br/>Valuation Report
+                  Inventory<br/>Valuation
                 </h2>
                 <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-4 uppercase tracking-widest">
                   ByteFlow Technologies
                 </p>
               </div>
+              
               <div className="text-left md:text-right mt-4 md:mt-0 print:text-right">
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Generated Date</p>
                 <p className="text-lg font-medium text-slate-800 dark:text-white">{new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">{new Date().toLocaleTimeString()}</p>
-                <div className="print:hidden mt-4 md:mt-6">
+                <div className="print:hidden mt-4 md:mt-6 flex justify-end gap-2">
+                  <ExportButton 
+                    data={products.map(p => ({
+                      SKU: p.sku,
+                      Name: p.name,
+                      CostPrice: Number(p.costPrice),
+                      SellPrice: Number(p.sellPrice),
+                      StockQty: p.stockQty,
+                      TotalValue: Number(p.sellPrice) * p.stockQty
+                    }))} 
+                    filename="ByteFlow_Inventory_Report" 
+                  />
                   <PrintButton />
                 </div>
               </div>
             </div>
 
-            {/* Summary Cards - Hidden on Print */}
+            {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8 print:hidden">
               <div className="border-l-4 border-blue-500 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-r-xl">
                 <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">Total Purchase Value</p>

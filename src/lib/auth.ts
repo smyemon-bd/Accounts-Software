@@ -48,10 +48,12 @@ export const authOptions: NextAuthOptions = {
           include: { role: { include: { permissions: { include: { permission: true } } } } },
         });
         
-        if (dbUser) {
+        if (dbUser && dbUser.role) {
           token.permissions = dbUser.role.permissions.map(p => p.permission.key);
+          token.role = dbUser.role.name;
         } else {
-          return null;
+          // ইউজার ডেটাবেজে না থাকলে (যেমন: ডেটাবেজ রিসেট হয়েছে) টোকেন খালি করে দাও
+          return {} as any; 
         }
       }
       return token;

@@ -1,11 +1,11 @@
 "use server";
 import { prisma } from "@/lib/prisma";
-import { requirePermission } from "@/lib/rbac";
+import { requireAuth, requirePermission } from "@/lib/rbac";
 import { revalidatePath } from "next/cache";
 
-// ১. ড্যাশবোর্ড সেটিংস আনা
+// ১. ড্যাশবোর্ড সেটিংস আনা (যেকোনো লগইন করা ইউজার দেখতে পারবে)
 export async function getDashboardSettings() {
-  await requirePermission("dashboard.admin");
+  await requireAuth();
   
   let settings = await prisma.dashboardSetting.findUnique({
     where: { id: "global_dashboard" }
@@ -19,7 +19,7 @@ export async function getDashboardSettings() {
   return settings;
 }
 
-// ২. ড্যাশবোর্ড সেটিংস আপডেট
+// ২. ড্যাশবোর্ড সেটিংস আপডেট (শুধু অ্যাডমিন পারবে)
 export async function updateDashboardSettings(formData: FormData) {
   await requirePermission("dashboard.admin");
   

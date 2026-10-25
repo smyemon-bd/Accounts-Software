@@ -82,19 +82,17 @@ input:-webkit-autofill:active {
    প্রিন্টের জন্য কাস্টম স্টাইল
    ========================================= */
 @media print {
-  /* ১. সাইডবার, হেডার, ফর্ম এবং অপ্রয়োজনীয় বাটন লুকানো */
-  aside, 
-  header, 
-  nav, 
-  .print\:hidden,
-  button {
+  /* ১. সাইডবার, হেডার, ফর্ম এবং অপ্রয়োজনীয় বাটন লুকানো */
+  aside, header, nav, .print\:hidden, button {
     display: none !important;
   }
 
   /* ২. মূল কন্টেইনারের প্যাডিং এবং মার্জিন শূন্য করা */
-  main {
+  main, .max-w-7xl, .max-w-4xl, .max-w-5xl, .max-w-6xl {
     margin: 0 !important;
     padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
     overflow: visible !important;
   }
 
@@ -107,35 +105,36 @@ input:-webkit-autofill:active {
     font-size: 12px;
   }
 
-  /* ৪. কন্টেইনারের সীমাবদ্ধতা সরানো */
-  .max-w-7xl, .max-w-4xl, .max-w-2xl {
-    max-width: 100% !important;
-    width: 100% !important;
-  }
-
-  /* ৫. কার্ডের শ্যাডো ও বর্ডার সরানো */
-  .bg-white {
-    box-shadow: none !important;
-  }
-
-  /* ৬. টেবিল ডিজাইন প্রিন্টের জন্য */
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-  th, td {
-    padding: 8px !important;
-    border: 1px solid #ddd !important;
-  }
-
-  /* ৭. পেজ ব্রেক ঠিক রাখা */
+  /* ৪. পেজ ব্রেক কন্ট্রোল */
   .page-break {
     page-break-before: always;
   }
   tr {
     page-break-inside: avoid;
   }
+
+  /* ৫. রিপোর্ট ও ইনভয়েসের জন্য প্রিন্ট টেবিল ডিজাইন (শুধু .print-table-এর জন্য) */
+  .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  .print-table th, .print-table td {
+    border: 1px solid #cbd5e1 !important; /* হালকা ধূসর বর্ডার */
+    padding: 8px !important;
+    color: black !important;
+  }
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: bold !important;
+  }
 }
+
+/* সাধারণ টেবিল ডিজাইন (প্রিন্টের বাইরে ওয়েবসাইটের জন্য) */
+.invoice-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
 /* টপ লোডার এনিমেশন */
 @keyframes progress {
   0% { transform: scaleX(0); }

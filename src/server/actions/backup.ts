@@ -25,18 +25,21 @@ export async function createBackup(formData: FormData) {
   const fileName = `byteflow_backup_${timestamp}.sql`;
   const filePath = path.join(backupDir, fileName);
 
-  // pg_dump এর সম্পূর্ণ পাথ (আপনার ভার্সন ১৬ না হলে পরিবর্তন করুন)
-  const pgDumpPath = `"C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe"`;
-  
-  // কমান্ড তৈরি
-  const command = `${pgDumpPath} -U postgres -h localhost -p 5432 -F p -f "${filePath}" byteflow_bms`;
+  // .env থেকে পাথ এবং পাসওয়ার্ড নেওয়া হচ্ছে (ফallback হিসেবে ডিফল্ট ভ্যালু)
+  const pgDumpPath = `"${process.env.PG_DUMP_PATH || 'C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe'}"`; 
+  const dbName = process.env.DB_NAME || "byteflow_bms";
+  const dbUser = process.env.DB_USER || "postgres";
+  const dbHost = process.env.DB_HOST || "localhost";
+  const dbPass = process.env.DB_PASSWORD || "byteflow";
+  const dbPort = process.env.DB_PORT || "5432";
+
+  const command = `${pgDumpPath} -U ${dbUser} -h ${dbHost} -p ${dbPort} -F p -f "${filePath}" ${dbName}`;
 
   try {
-    // এখানে PGPASSWORD এনভায়রনমেন্ট ভেরিয়েবলটি Node.js থেকে সরাসরি পাঠানো হচ্ছে
     await execAsync(command, { 
       shell: "cmd.exe", 
       windowsHide: true,
-      env: { ...process.env, PGPASSWORD: "byteflow" } 
+      env: { ...process.env, PGPASSWORD: dbPass } 
     });
     return { success: true, filePath };
   } catch (error: any) {

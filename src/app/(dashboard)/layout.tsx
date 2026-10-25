@@ -9,18 +9,19 @@ import { TopLoader } from "@/components/top-loader";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GlobalSearch } from "@/components/global-search";
 import { UserProfileMenu } from "@/components/user-profile-menu";
+import { useSession } from "next-auth/react";
 import { 
   LayoutDashboard, Users, Briefcase, FileText, CreditCard, Package, 
   MonitorSmartphone, TrendingUp, Landmark, AlertCircle, BookOpen, Receipt, UserCircle, Settings, Database,
-  PieChart
+  PieChart, Wallet, CalendarCheck, Layers // ✅ Layers আইকন যোগ করা হলো
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: sessionData } = useSession();
 
-  // ডেমো সেশন (পরে আসল সেশন দিয়ে রিপ্লেস করবেন)
-  const session = { user: { name: "Super Admin", role: "SUPER_ADMIN", permissions: ["*"], image: null } };
-  const perms: string[] = session.user.permissions;
+  const user = sessionData?.user || { name: "Loading...", role: "USER", permissions: [] };
+  const perms: string[] = (user as any).permissions || [];
   const has = (p: string) => perms.includes("*") || perms.includes(p);
 
   const nav = [
@@ -28,9 +29,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: "/masters", label: "Masters", icon: Database, show: true },
     { href: "/sales", label: "Sales", icon: FileText, show: true },
     { href: "/payments", label: "Payments", icon: CreditCard, show: has("payment.read") },
+    { href: "/bulk-payments", label: "Bulk Entry", icon: Layers, show: has("dashboard.admin") }, // ✅ নতুন মেনু
     { href: "/investments", label: "Investments", icon: TrendingUp, show: has("dashboard.admin") },
     { href: "/loans", label: "Loans", icon: Landmark, show: has("dashboard.admin") },
     { href: "/expenses", label: "Expenses", icon: Receipt, show: has("dashboard.admin") },
+    { href: "/attendance", label: "Attendance", icon: CalendarCheck, show: has("dashboard.admin") },
     { href: "/reports", label: "Due Reports", icon: AlertCircle, show: has("dashboard.admin") },
     { href: "/accounting", label: "Accounting", icon: BookOpen, show: has("dashboard.admin") },
     { href: "/cashbook", label: "Cash Book", icon: Landmark, show: has("dashboard.admin") },
@@ -47,14 +50,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* মোবাইল হেডার */}
         <div className="md:hidden print:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-30 flex items-center justify-between px-4 shadow-sm transition-colors">
           <div className="flex items-center gap-3">
-            <MobileSidebar nav={nav} user={session.user} />
+            <MobileSidebar nav={nav} user={user} />
             <h2 className="text-lg font-bold text-slate-800 dark:text-white">ByteFlow BMS </h2>
           </div>
           <div className="flex items-center gap-2">
             <GlobalSearch />
             <ThemeToggle />
             <NotificationBell />
-            <UserProfileMenu user={session.user} />
+            <UserProfileMenu user={user} />
           </div>
         </div>
 
@@ -96,7 +99,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <GlobalSearch />
             <ThemeToggle />
             <NotificationBell />
-            <UserProfileMenu user={session.user} />
+            <UserProfileMenu user={user} />
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">

@@ -20,7 +20,11 @@ export default async function EditServicePage({ params }: { params: Promise<{ id
 
   return (
     <div className="max-w-xl mx-auto space-y-6 pt-10">
-      <Link href="/services" className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors">
+      {/* লিংকটি Masters-এর Services ট্যাবে নিয়ে যাবে */}
+      <Link 
+        href="/masters?tab=services" 
+        className="text-sm font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"
+      >
         ← Back to Services
       </Link>
 
