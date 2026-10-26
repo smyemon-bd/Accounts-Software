@@ -99,21 +99,33 @@ export async function updateProfile(formData: FormData) {
   const dob = dobString ? new Date(dobString) : null;
 
   const imageFile = formData.get("image") as File | null;
-  
   let imageUrl = undefined;
   
   if (imageFile && imageFile.size > 0) {
-    const bytes = await imageFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
     const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
     
-    // public/uploads ফোল্ডার না থাকলে তৈরি করা
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    await mkdir(uploadDir, { recursive: true });
-    
-    const filepath = path.join(uploadDir, filename);
-    await writeFile(filepath, buffer);
-    imageUrl = `/uploads/${filename}`;
+    // ✅ Supabase-এ আপলোড (Vercel-এ কাজ করবে)
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(filename, imageFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload Error:", error);
+      throw new Error("Failed to upload image");
+    }
+
+    // ✅ পাবলিক URL বের করা
+    const { data: publicUrlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filename);
+
+    imageUrl = publicUrlData.publicUrl;
   }
 
   await prisma.user.update({
@@ -129,6 +141,8 @@ export async function updateProfile(formData: FormData) {
   });
 
   revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
   return { success: true };
 }
 
@@ -161,6 +175,238 @@ export async function resetUserPassword(formData: FormData) {
     data: { passwordHash },
   });
 
-  revalidatePath("/users");
+  revalidatePath("/users");export async function updateProfile(formData: FormData) {
+  const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
+  
+  const name = String(formData.get("name"));
+  const phone = formData.get("phone") ? String(formData.get("phone")) : null;
+  const address = formData.get("address") ? String(formData.get("address")) : null;
+  const bio = formData.get("bio") ? String(formData.get("bio")) : null;
+  const dobString = formData.get("dob") ? String(formData.get("dob")) : null;
+  const dob = dobString ? new Date(dobString) : null;
+
+  const imageFile = formData.get("image") as File | null;
+  let imageUrl = undefined;
+  
+  if (imageFile && imageFile.size > 0) {
+    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
+    
+    // ✅ Supabase-এ আপলোড (Vercel-এ কাজ করবে)
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(filename, imageFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload Error:", error);
+      throw new Error("Failed to upload image");
+    }
+
+    // ✅ পাবলিক URL বের করা
+    const { data: publicUrlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filename);
+
+    imageUrl = publicUrlData.publicUrl;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: name || undefined,
+      phone,
+      address,
+      bio,
+      dob,
+      ...(imageUrl && { image: imageUrl }),
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
+  return { success: true };
+}export async function updateProfile(formData: FormData) {
+  const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
+  
+  const name = String(formData.get("name"));
+  const phone = formData.get("phone") ? String(formData.get("phone")) : null;
+  const address = formData.get("address") ? String(formData.get("address")) : null;
+  const bio = formData.get("bio") ? String(formData.get("bio")) : null;
+  const dobString = formData.get("dob") ? String(formData.get("dob")) : null;
+  const dob = dobString ? new Date(dobString) : null;
+
+  const imageFile = formData.get("image") as File | null;
+  let imageUrl = undefined;
+  
+  if (imageFile && imageFile.size > 0) {
+    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
+    
+    // ✅ Supabase-এ আপলোড (Vercel-এ কাজ করবে)
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(filename, imageFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload Error:", error);
+      throw new Error("Failed to upload image");
+    }
+
+    // ✅ পাবলিক URL বের করা
+    const { data: publicUrlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filename);
+
+    imageUrl = publicUrlData.publicUrl;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: name || undefined,
+      phone,
+      address,
+      bio,
+      dob,
+      ...(imageUrl && { image: imageUrl }),
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
+  return { success: true };
+}export async function updateProfile(formData: FormData) {
+  const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
+  
+  const name = String(formData.get("name"));
+  const phone = formData.get("phone") ? String(formData.get("phone")) : null;
+  const address = formData.get("address") ? String(formData.get("address")) : null;
+  const bio = formData.get("bio") ? String(formData.get("bio")) : null;
+  const dobString = formData.get("dob") ? String(formData.get("dob")) : null;
+  const dob = dobString ? new Date(dobString) : null;
+
+  const imageFile = formData.get("image") as File | null;
+  let imageUrl = undefined;
+  
+  if (imageFile && imageFile.size > 0) {
+    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
+    
+    // ✅ Supabase-এ আপলোড (Vercel-এ কাজ করবে)
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(filename, imageFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload Error:", error);
+      throw new Error("Failed to upload image");
+    }
+
+    // ✅ পাবলিক URL বের করা
+    const { data: publicUrlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filename);
+
+    imageUrl = publicUrlData.publicUrl;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: name || undefined,
+      phone,
+      address,
+      bio,
+      dob,
+      ...(imageUrl && { image: imageUrl }),
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
+  return { success: true };
+}export async function updateProfile(formData: FormData) {
+  const sessionUser = await requireAuth();
+  const userId = (sessionUser as any).id || sessionUser.id;
+  if (!userId) throw new Error("User not found");
+  
+  const name = String(formData.get("name"));
+  const phone = formData.get("phone") ? String(formData.get("phone")) : null;
+  const address = formData.get("address") ? String(formData.get("address")) : null;
+  const bio = formData.get("bio") ? String(formData.get("bio")) : null;
+  const dobString = formData.get("dob") ? String(formData.get("dob")) : null;
+  const dob = dobString ? new Date(dobString) : null;
+
+  const imageFile = formData.get("image") as File | null;
+  let imageUrl = undefined;
+  
+  if (imageFile && imageFile.size > 0) {
+    const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, "-")}`;
+    
+    // ✅ Supabase-এ আপলোড (Vercel-এ কাজ করবে)
+    const { createClient } = require("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(filename, imageFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload Error:", error);
+      throw new Error("Failed to upload image");
+    }
+
+    // ✅ পাবলিক URL বের করা
+    const { data: publicUrlData } = supabase.storage
+      .from("avatars")
+      .getPublicUrl(filename);
+
+    imageUrl = publicUrlData.publicUrl;
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: name || undefined,
+      phone,
+      address,
+      bio,
+      dob,
+      ...(imageUrl && { image: imageUrl }),
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  revalidatePath("/", "layout");
+  return { success: true };
+}
   return { success: true };
 }
