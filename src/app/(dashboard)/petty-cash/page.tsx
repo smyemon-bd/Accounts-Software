@@ -15,9 +15,10 @@ export default async function PettyCashPage() {
 
   const accountBalances = await getAllAccountBalances();
   
-  const recentExpenses = await prisma.expense.findMany({
+    const recentExpenses = await prisma.expense.findMany({
     where: { paymentAccountId: { in: pettyCashAccounts.map(a => a.id) } },
     orderBy: { date: "desc" },
+    include: { category: true },
     take: 10,
   });
 

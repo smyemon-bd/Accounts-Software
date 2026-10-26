@@ -122,7 +122,7 @@ export function SaleForm({ clients, services, products, paymentAccounts }: {
       setDiscount(0);
       setPaidAmount(0);
     } else {
-      showToast(res.error || "Failed to complete sale.");
+      showToast((res as any).error || "Failed to complete sale.");
     }
   };
 

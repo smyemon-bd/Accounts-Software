@@ -12,8 +12,10 @@ const ThemeContext = createContext<{
   setTheme: () => {},
 });
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({ children, ...props }: { children: React.ReactNode, [key: string]: any }) {
+  // বাকি কোড আগের মতোই থাকবে
   const [theme, setThemeState] = useState<Theme>("light");
+  // ...
 
   // প্রথমে লোকাল স্টোরেজ থেকে থিম লোড করা
   useEffect(() => {
