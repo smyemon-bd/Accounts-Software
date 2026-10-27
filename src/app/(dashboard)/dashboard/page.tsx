@@ -21,9 +21,12 @@ export default async function DashboardPage({
   searchParams: Promise<{ month?: string, year?: string }> 
 }) {
   const sessionUser = await getSessionUser();
-  const dbUser = sessionUser ? await prisma.user.findUnique({ where: { id: (sessionUser as any).id }, select: { name: true } }) : null;
+  const dbUser = sessionUser ? await prisma.user.findUnique({ 
+    where: { id: (sessionUser as any).id }, 
+    select: { name: true } 
+  }) : null;
   const user = { ...sessionUser, name: dbUser?.name || sessionUser?.name };
-  
+
   const settings = await getDashboardSettings();
 
   const resolvedParams = await searchParams;
@@ -33,62 +36,62 @@ export default async function DashboardPage({
   const startDate = new Date(selectedYear, selectedMonth, 1);
   const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
 
-  const [clients, orders, allOrders, collectedAgg, recent, payments, products, expenses, upcomingDues, filteredPayments, filteredExpenses, loans, loanRepayments, investments, usersCount, sales, accountBalances, dividends, shareHolders, lowStockCount] = await Promise.all([
-    prisma.client.count(),
-    prisma.serviceOrder.count(),
-    prisma.serviceOrder.findMany({
-      where: { status: { not: "CANCELLED" } },
-      include: { payments: true }
-    }),
+  // ✅ অপটিমাইজড কুয়েরি (অপ্রয়োজনীয় ডেটা বাদ দেওয়া হয়েছে)
+  const [
+    collectedAgg, 
+    recent, 
+    payments, 
+    products, 
+    expenses, 
+    filteredPayments, 
+    filteredExpenses, 
+    loans, 
+    loanRepayments, 
+    investments, 
+    usersCount, 
+    sales, 
+    accountBalances, 
+    dividends, 
+    shareHolders, 
+    lowStockCount,
+    totalSalesAgg,
+    totalDueAgg
+  ] = await Promise.all([
     prisma.payment.aggregate({ _sum: { amount: true } }),
-    prisma.serviceOrder.findMany({
-      take: 5, orderBy: { createdAt: "desc" },
-      include: { client: true, service: true },
-    }),
-    prisma.payment.findMany({ orderBy: { paidAt: "desc" }, take: 50 }),
-    prisma.product.findMany(),
+    prisma.serviceOrder.findMany({ take: 5, orderBy: { createdAt: "desc" }, include: { client: true, service: true } }),
+    prisma.payment.findMany({ orderBy: { paidAt: "desc" }, take: 50, select: { id: true, amount: true, paidAt: true } }),
+    prisma.product.findMany({ select: { id: true, name: true, stockQty: true, costPrice: true, sellPrice: true } }),
     prisma.expense.findMany({ orderBy: { date: "desc" }, take: 50, include: { category: true } }),
-    prisma.installment.findMany({
-      where: {
-        status: { in: ["DUE", "PARTIAL"] },
-        dueDate: {
-          lte: new Date(new Date().setDate(new Date().getDate() + 7)),
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        }
-      },
-      include: { serviceOrder: { include: { client: true } } },
-      orderBy: { dueDate: "asc" },
-      take: 5
-    }),
-    prisma.payment.findMany({ where: { paidAt: { gte: startDate, lte: endDate } } }),
+    prisma.payment.findMany({ where: { paidAt: { gte: startDate, lte: endDate } }, select: { amount: true } }),
     prisma.expense.findMany({ where: { date: { gte: startDate, lte: endDate } }, include: { category: true } }),
-    prisma.loan.findMany(),
-    prisma.loanRepayment.findMany(),
-    prisma.investment.findMany(),
+    prisma.loan.aggregate({ _sum: { principal: true } }),
+    prisma.loanRepayment.aggregate({ _sum: { amount: true } }),
+    prisma.investment.aggregate({ _sum: { amount: true } }),
     prisma.user.count({ where: { isActive: true } }),
-    prisma.sale.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.sale.aggregate({ _sum: { total: true, dueAmount: true } }), // ✅ সরাসরি টোটাল সেলস ও ডিউ আনা
     getAllAccountBalances(),
-    prisma.dividend.findMany(),
-    prisma.shareHolder.findMany(),
-    prisma.product.count({ where: { stockQty: { lte: prisma.product.fields.reorderLvl } } }), // ✅ Low Stock Count
+    prisma.dividend.findMany({ select: { amount: true, status: true } }),
+    prisma.shareHolder.aggregate({ _sum: { totalShares: true } }),
+    prisma.product.count({ where: { stockQty: { lte: prisma.product.fields.reorderLvl } } }),
+    prisma.sale.aggregate({ _sum: { total: true } }),
+    prisma.sale.aggregate({ _sum: { dueAmount: true } }),
   ]);
 
-  const totalDue = sales.reduce((acc, sale) => acc + Number(sale.dueAmount), 0);
+  const totalDue = Number(totalDueAgg._sum.dueAmount ?? 0);
   const totalCollected = Number(collectedAgg._sum.amount ?? 0);
   const totalExpense = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
-  const netProfit = totalCollected - totalExpense;
 
   const monthlyCollected = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const monthlyExpense = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-  const totalLoan = loans.reduce((sum, l) => sum + Number(l.principal), 0);
-  const totalLoanPaid = loanRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
-  const totalInvestment = investments.reduce((sum, i) => sum + Number(i.amount), 0);
+  const totalLoan = Number(loans._sum.principal ?? 0);
+  const totalLoanPaid = Number(loanRepayments._sum.amount ?? 0);
+  const totalInvestment = Number(investments._sum.amount ?? 0);
   const totalStockValue = products.reduce((sum, p) => sum + (Number(p.sellPrice) * p.stockQty), 0);
   const totalPurchaseValue = products.reduce((sum, p) => sum + (Number(p.costPrice) * p.stockQty), 0);
-  const totalSales = sales.reduce((sum, s) => sum + Number(s.total), 0);
+  const totalSales = Number(totalSalesAgg._sum.total ?? 0);
 
-  const totalShares = shareHolders.reduce((sum, h) => sum + h.totalShares, 0);
+  const totalShares = Number(shareHolders._sum.totalShares ?? 0);
   const totalDividendDeclared = dividends.reduce((sum, d) => sum + Number(d.amount), 0);
   const totalDividendPaid = dividends.filter(d => d.status === "PAID").reduce((sum, d) => sum + Number(d.amount), 0);
   const totalDividendDue = totalDividendDeclared - totalDividendPaid;
@@ -129,6 +132,7 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header Section (অপরিবর্তিত) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Welcome back, {user?.name}!</h1>
@@ -157,7 +161,7 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      {/* ✅ Low Stock Alert Banner */}
+      {/* Low Stock Alert Banner */}
       {lowStockCount > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
           <div className="flex items-center gap-3">
@@ -175,7 +179,7 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* Top Summary Cards */}
+      {/* Top Summary Cards (অপরিবর্তিত) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10"></div>
@@ -202,7 +206,7 @@ export default async function DashboardPage({
         {settings?.showDue && <StatCard label="Total Due" value={`৳ ${totalDue.toLocaleString()}`} icon={<AlertCircle size={20} />} color="bg-red-100 text-red-600" />}
       </div>
 
-      {/* Other KPI Cards */}
+      {/* Other KPI Cards (অপরিবর্তিত) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {settings?.showInvestment && <MiniKpiCard label="Total Investment" value={`৳ ${totalInvestment.toLocaleString()}`} icon={<TrendingUp size={16} />} />}
         {settings?.showLoan && <MiniKpiCard label="Loan Taken" value={`৳ ${totalLoan.toLocaleString()}`} icon={<Landmark size={16} />} />}
@@ -234,7 +238,7 @@ export default async function DashboardPage({
         ))}
       </div>
 
-      {/* Dividend KPI Cards */}
+      {/* Dividend KPI Cards (অপরিবর্তিত) */}
       {settings?.showDividend && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <MiniKpiCard label="Total Shares" value={totalShares.toString()} icon={<PieChart size={16} />} />
@@ -244,7 +248,7 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* Charts Section */}
+      {/* Charts Section (অপরিবর্তিত) */}
       {settings?.showGraph && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -301,7 +305,7 @@ export default async function DashboardPage({
         </div>
       )}
 
-      {/* Recent Orders */}
+      {/* Recent Orders (অপরিবর্তিত) */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-bold text-slate-800 dark:text-white">Recent Orders</h2>
