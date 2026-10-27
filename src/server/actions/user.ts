@@ -175,7 +175,8 @@ export async function resetUserPassword(formData: FormData) {
     data: { passwordHash },
   });
 
-  revalidatePath("/users");export async function updateProfile(formData: FormData) {
+  revalidatePath("/users");
+  export async function updateProfile(formData: FormData) {
   const sessionUser = await requireAuth();
   const userId = (sessionUser as any).id || sessionUser.id;
   if (!userId) throw new Error("User not found");
